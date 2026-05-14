@@ -1,0 +1,48 @@
+module REG_FILE(
+    input           clk,
+    input [4:0]     rf_ra0,
+    input [4:0]     rf_ra1,
+    input [4:0]     rf_wa,
+    input           rf_we,
+    input [31:0]    rf_wd,
+
+    output [31:0]   rf_rd0,
+    output [31:0]   rf_rd1,
+
+    input  [4:0]    debug_reg_ra, // PDU 传入的查看地址
+    output [31:0]   debug_reg_rd  // 输出给 PDU 查看的数据
+);
+
+    reg [31:0] reg_file[31:0];
+
+    
+    // 读端口 0
+    assign rf_rd0 = (rf_ra0 == 5'b0) ? 32'b0 : 
+                    ((rf_we && (rf_ra0 == rf_wa)) ? rf_wd : reg_file[rf_ra0]);
+
+    // 读端口 1
+    assign rf_rd1 = (rf_ra1 == 5'b0) ? 32'b0 : 
+                    ((rf_we && (rf_ra1 == rf_wa)) ? rf_wd : reg_file[rf_ra1]);
+
+    // 调试端口通常也建议改为写优先，以便实时观察写入值
+    assign debug_reg_rd = (debug_reg_ra == 5'b0) ? 32'b0 : 
+                          ((rf_we && (debug_reg_ra == rf_wa)) ? rf_wd : reg_file[debug_reg_ra]);
+
+    // --- 同步写逻辑 ---
+    always @(posedge clk) begin
+        if (rf_we) begin
+            if (rf_wa != 5'b0) begin
+                reg_file[rf_wa] <= rf_wd;
+            end
+        end
+    end
+
+    // --- 初始化 ---
+    integer i;
+    initial begin
+        for (i = 0; i < 32; i = i + 1) begin
+            reg_file[i] = 32'b0;
+        end
+    end
+    
+endmodule
